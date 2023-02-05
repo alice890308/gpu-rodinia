@@ -1,1 +1,5 @@
 ./kmeans -o -i ../../data/kmeans/kdd_cup 
+
+./kmeans -o -i ../../data/kmeans/10000000_34.txt
+
+./kmeans -o -i ../../data/kmaens/3000000_34.txt

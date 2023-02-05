@@ -20,6 +20,7 @@
 #include <string.h>
 #include <math.h>
 #include <cuda.h>
+#include "nvtx3/nvToolsExt.h"
 
 #define MAX_THREADS_PER_BLOCK 512
 
@@ -68,6 +69,7 @@ void BFSGraph( int argc, char** argv)
 	
 	input_f = argv[1];
 	printf("Reading File\n");
+	nvtxRangePush("reading file");
 	//Read in Graph from a file
 	fp = fopen(input_f,"r");
 	if(!fp)
@@ -79,6 +81,7 @@ void BFSGraph( int argc, char** argv)
 	int source = 0;
 
 	fscanf(fp,"%d",&no_of_nodes);
+	nvtxRangePop();
 
 	int num_of_blocks = 1;
 	int num_of_threads_per_block = no_of_nodes;
@@ -92,13 +95,22 @@ void BFSGraph( int argc, char** argv)
 	}
 
 	// allocate host memory
+	nvtxRangePush("malloc host graph nodes");
 	Node* h_graph_nodes = (Node*) malloc(sizeof(Node)*no_of_nodes);
+	nvtxRangePop();
+	nvtxRangePush("maloc host graph mask");
 	bool *h_graph_mask = (bool*) malloc(sizeof(bool)*no_of_nodes);
+	nvtxRangePop();
+	nvtxRangePush("maloc host updating graph mask");
 	bool *h_updating_graph_mask = (bool*) malloc(sizeof(bool)*no_of_nodes);
+	nvtxRangePop();
+	nvtxRangePush("maloc host graph visited");
 	bool *h_graph_visited = (bool*) malloc(sizeof(bool)*no_of_nodes);
+	nvtxRangePop();
 
 	int start, edgeno;   
 	// initalize the memory
+	nvtxRangePush("setup initial value of graph arrays");
 	for( unsigned int i = 0; i < no_of_nodes; i++) 
 	{
 		fscanf(fp,"%d %d",&start,&edgeno);
@@ -108,10 +120,13 @@ void BFSGraph( int argc, char** argv)
 		h_updating_graph_mask[i]=false;
 		h_graph_visited[i]=false;
 	}
+	nvtxRangePop();
 
+	nvtxRangePush("reading source node from file");
 	//read the source node from the file
 	fscanf(fp,"%d",&source);
 	source=0;
+	nvtxRangePop();
 
 	//set the source node as true in the mask
 	h_graph_mask[source]=true;
@@ -120,13 +135,17 @@ void BFSGraph( int argc, char** argv)
 	fscanf(fp,"%d",&edge_list_size);
 
 	int id,cost;
+	nvtxRangePush("malloc host graph edges");
 	int* h_graph_edges = (int*) malloc(sizeof(int)*edge_list_size);
+	nvtxRangePop();
+	nvtxRangePush("assign edge value");
 	for(int i=0; i < edge_list_size ; i++)
 	{
 		fscanf(fp,"%d",&id);
 		fscanf(fp,"%d",&cost);
 		h_graph_edges[i] = id;
 	}
+	nvtxRangePop();
 
 	if(fp)
 		fclose(fp);    
@@ -186,7 +205,9 @@ void BFSGraph( int argc, char** argv)
 	{
 		//if no thread changes this value then the loop stops
 		stop=false;
+		nvtxRangePush("memcpy HtoD");
 		cudaMemcpy( d_over, &stop, sizeof(bool), cudaMemcpyHostToDevice) ;
+		nvtxRangePop();
 		Kernel<<< grid, threads, 0 >>>( d_graph_nodes, d_graph_edges, d_graph_mask, d_updating_graph_mask, d_graph_visited, d_cost, no_of_nodes);
 		// check if kernel execution generated and error
 		
@@ -194,8 +215,9 @@ void BFSGraph( int argc, char** argv)
 		Kernel2<<< grid, threads, 0 >>>( d_graph_mask, d_updating_graph_mask, d_graph_visited, d_over, no_of_nodes);
 		// check if kernel execution generated and error
 		
-
+		nvtxRangePush("memcpy DtoH");
 		cudaMemcpy( &stop, d_over, sizeof(bool), cudaMemcpyDeviceToHost) ;
+		nvtxRangePop();
 		k++;
 	}
 	while(stop);

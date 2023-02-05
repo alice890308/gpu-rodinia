@@ -66,6 +66,7 @@ void allocateMemory(int npoints, int nfeatures, int nclusters, float **features)
 	block_new_centers = (float *) malloc(nclusters*nfeatures*sizeof(float));
 	
 	/* allocate memory for feature_flipped_d[][], feature_d[][] (device) */
+	printf("larger malloc size: %d\n", npoints*nfeatures*sizeof(float));
 	cudaMalloc((void**) &feature_flipped_d, npoints*nfeatures*sizeof(float));
 	cudaMemcpy(feature_flipped_d, features[0], npoints*nfeatures*sizeof(float), cudaMemcpyHostToDevice);
 	cudaMalloc((void**) &feature_d, npoints*nfeatures*sizeof(float));
